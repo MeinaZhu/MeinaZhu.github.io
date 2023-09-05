@@ -4,7 +4,7 @@ Research Interests
 Online education, self-directed learning, STEM education, and learning analytics.
 
 ## <a href="https://meinazhu.github.io/Research">Research</a> 
-### Publications (https://link-url-here.org)
-## Teaching (https://meinazhu.github.io/Teaching)
-## Conference
+### Publications 
+## <a href="https://meinazhu.github.io/Teaching">Teaching</a> Teaching (https://meinazhu.github.io/Teaching)
+## <a href="https://meinazhu.github.io/Conference">Conference</a>  Conference
 ## CV
