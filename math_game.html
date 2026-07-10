@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Math Quest Platformer</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: linear-gradient(#1a1a2e, #16213e);
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    color: #fff;
+    min-height: 100vh;
+  }
+  h1 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    letter-spacing: 1px;
+    text-shadow: 2px 2px 0 #000;
+  }
+  #gameWrap {
+    position: relative;
+    width: 900px;
+    max-width: 100%;
+  }
+  canvas {
+    background: #87CEEB;
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 4px solid #4a3728;
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+  }
+  #hud span { margin-right: 18px; }
+  .overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10,10,25,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    border-radius: 6px;
+  }
+  .hidden { display: none !important; }
+  .bigTitle { font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; }
+  .subText { font-size: 16px; margin-bottom: 20px; color: #ccd; max-width: 500px; line-height: 1.5; }
+  button.gameBtn {
+    background: #f7b731;
+    border: none;
+    color: #1a1a2e;
+    font-weight: bold;
+    font-size: 18px;
+    padding: 12px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 6px;
+    box-shadow: 0 3px 0 #b5811b;
+    transition: transform 0.1s;
+  }
+  button.gameBtn:hover { transform: translateY(-2px); }
+  button.gameBtn:active { transform: translateY(1px); box-shadow: 0 1px 0 #b5811b; }
+  #mathQuestion {
+    font-size: 26px;
+    margin: 14px 0 22px 0;
+    background: #0f3460;
+    padding: 14px 24px;
+    border-radius: 8px;
+    border: 2px solid #f7b731;
+  }
+  #mathChoices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .choiceBtn {
+    background: #533483;
+    border: 2px solid #7a4fc9;
+    color: #fff;
+    font-size: 20px;
+    padding: 14px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    min-width: 140px;
+  }
+  .choiceBtn:hover { background: #6b46b8; }
+  .choiceBtn.correct { background: #27ae60 !important; border-color: #2ecc71; }
+  .choiceBtn.wrong { background: #c0392b !important; border-color: #e74c3c; }
+  #feedback { min-height: 24px; font-size: 16px; margin-top: 10px; font-weight: bold; }
+  #controlsHint {
+    color: #aab;
+    font-size: 13px;
+    margin-top: 8px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<h1>🧮 Math Quest Platformer</h1>
+
+<div id="hud">
+  <div>
+    <span>❤️ Lives: <span id="livesDisplay">3</span></span>
+    <span>⭐ Score: <span id="scoreDisplay">0</span></span>
+    <span>🪙 Coins: <span id="coinsDisplay">0</span>/<span id="coinsTotalDisplay">0</span></span>
+    <span>🏰 Level: <span id="levelDisplay">1</span>/3</span>
+  </div>
+</div>
+
+<div id="gameWrap">
+  <canvas id="gameCanvas" width="900" height="450"></canvas>
+
+  <div id="startScreen" class="overlay">
+    <div class="bigTitle">Math Quest Platformer</div>
+    <div class="subText">
+      Run and jump through 3 worlds! When you hit a glowing gate, solve the math problem
+      to break through. Avoid enemies and pits — you only have 3 lives!<br><br>
+      Topics: order of operations, fractions, negative numbers, ratios &amp; equations.
+    </div>
+    <button class="gameBtn" id="startBtn">Start Game</button>
+    <div id="controlsHint">
+      Controls: ← → or A/D to move &nbsp;|&nbsp; Space or ↑ to jump
+    </div>
+  </div>
+
+  <div id="mathOverlay" class="overlay hidden">
+    <div class="bigTitle">🚪 Gate Blocked!</div>
+    <div id="mathQuestion">2 + 2 = ?</div>
+    <div id="mathChoices"></div>
+    <div id="feedback"></div>
+  </div>
+
+  <div id="levelCompleteScreen" class="overlay hidden">
+    <div class="bigTitle">Level Complete!</div>
+    <div class="subText" id="levelCompleteText"></div>
+    <button class="gameBtn" id="nextLevelBtn">Next Level</button>
+  </div>
+
+  <div id="gameOverScreen" class="overlay hidden">
+    <div class="bigTitle">💀 Game Over</div>
+    <div class="subText" id="gameOverText"></div>
+    <button class="gameBtn" id="restartBtn">Try Again</button>
+  </div>
+
+  <div id="victoryScreen" class="overlay hidden">
+    <div class="bigTitle">🏆 You Beat Math Quest!</div>
+    <div class="subText" id="victoryText"></div>
+    <button class="gameBtn" id="playAgainBtn">Play Again</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const CW = canvas.width, CH = canvas.height;
+
+// ---------- Math Problem Generator ----------
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = randInt(0, i); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+
+function makeChoices(correct, generator) {
+  const set = new Set([correct]);
+  let tries = 0;
+  while (set.size < 4 && tries < 50) { set.add(generator()); tries++; }
+  const arr = shuffle([...set]);
+  return { choices: arr, correctIndex: arr.indexOf(correct) };
+}
+
+function genProblemLevel1() {
+  const type = randInt(0, 2);
+  if (type === 0) {
+    // order of operations: a + b * c
+    const a = randInt(1, 9), b = randInt(1, 6), c = randInt(1, 6);
+    const correct = a + b * c;
+    const q = `${a} + ${b} × ${c} = ?`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-8, 8));
+    return { q, choices, correctIndex };
+  } else if (type === 1) {
+    // simple one-step equation x + a = b, solve x
+    const x = randInt(1, 12), a = randInt(1, 10);
+    const b = x + a;
+    const correct = x;
+    const q = `Solve for x: x + ${a} = ${b}`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-5, 5));
+    return { q, choices, correctIndex };
+  } else {
+    // multiplication/division mix
+    const a = randInt(2, 9), b = randInt(2, 9);
+    const correct = a * b;
+    const q = `${a} × ${b} = ?`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-10, 10));
+    return { q, choices, correctIndex };
+  }
+}
+
+function genProblemLevel2() {
+  const type = randInt(0, 2);
+  if (type === 0) {
+    // fraction addition, like denominators
+    const d = [4, 5, 6, 8, 10][randInt(0, 4)];
+    let n1 = randInt(1, d - 1), n2 = randInt(1, d - 1);
+    let sumN = n1 + n2;
+    const q = `${n1}/${d} + ${n2}/${d} = ?`;
+    const correct = `${sumN}/${d}`;
+    const gen = () => `${sumN + randInt(-2, 2) || sumN + 1}/${d}`;
+    const { choices, correctIndex } = makeChoices(correct, gen);
+    return { q, choices, correctIndex };
+  } else if (type === 1) {
+    // negative number arithmetic
+    const a = randInt(-10, -1), b = randInt(1, 10);
+    const correct = a + b;
+    const q = `${a} + ${b} = ?`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-6, 6));
+    return { q, choices, correctIndex };
+  } else {
+    // negative subtraction
+    const a = randInt(-9, 9), b = randInt(1, 9);
+    const correct = a - b;
+    const q = `${a} - ${b} = ?`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-6, 6));
+    return { q, choices, correctIndex };
+  }
+}
+
+function genProblemLevel3() {
+  const type = randInt(0, 2);
+  if (type === 0) {
+    // two-step equation: ax + b = c
+    const x = randInt(1, 10), a = randInt(2, 5), b = randInt(1, 10);
+    const c = a * x + b;
+    const correct = x;
+    const q = `Solve for x: ${a}x + ${b} = ${c}`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-4, 4) || correct + 1);
+    return { q, choices, correctIndex };
+  } else if (type === 1) {
+    // percentage
+    const base = [20, 40, 50, 80, 100, 200][randInt(0, 5)];
+    const pct = [10, 20, 25, 50][randInt(0, 3)];
+    const correct = (base * pct) / 100;
+    const q = `${pct}% of ${base} = ?`;
+    const { choices, correctIndex } = makeChoices(correct, () => correct + randInt(-10, 10) || correct + 5);
+    return { q, choices, correctIndex };
+  } else {
+    // ratio simplification: express a:b simplified, ask for simplified first term when b fixed at simplest*k
+    const simpleA = randInt(1, 6), simpleB = randInt(1, 6);
+    const k = randInt(2, 5);
+    const a = simpleA * k, b = simpleB * k;
+    const correct = `${simpleA}:${simpleB}`;
+    const q = `Simplify the ratio ${a}:${b}`;
+    const gen = () => `${simpleA + randInt(-1,1) || simpleA+1}:${simpleB + randInt(-1,1) || simpleB+1}`;
+    const { choices, correctIndex } = makeChoices(correct, gen);
+    return { q, choices, correctIndex };
+  }
+}
+
+function genProblem(level) {
+  if (level === 1) return genProblemLevel1();
+  if (level === 2) return genProblemLevel2();
+  return genProblemLevel3();
+}
+
+// ---------- Level Data ----------
+function buildLevel(levelNum) {
+  // ground segments: {x, w} at fixed groundY, with gaps as pits between segments
+  const groundY = 380;
+  let levels = {};
+
+  levels[1] = {
+    width: 2600,
+    groundY: groundY,
+    ground: [
+      {x:0, w:500}, {x:600, w:300}, {x:1000, w:250}, {x:1350, w:400}, {x:1900, w:250}, {x:2250, w:350}
+    ],
+    platforms: [
+      {x:250, y:290, w:120, h:20}, {x:700, y:260, w:100, h:20},
+      {x:1100, y:270, w:100, h:20}, {x:1500, y:250, w:120, h:20}, {x:2000, y:280, w:100, h:20}
+    ],
+    coins: [
+      {x:280,y:250},{x:320,y:250},{x:650,y:220},{x:1050,y:230},{x:1130,y:230},
+      {x:1550,y:210},{x:1600,y:210},{x:2030,y:240},{x:2400,y:340}
+    ],
+    enemies: [
+      {x:1050, y:groundY-30, w:30, h:30, minX:1000, maxX:1230, dir:1, speed:1.5}
+    ],
+    gates: [
+      {x:900, y:groundY-90, w:40, h:90, solved:false},
+      {x:1850, y:groundY-90, w:40, h:90, solved:false}
+    ],
+    finishX: 2550
+  };
+
+  levels[2] = {
+    width: 2900,
+    groundY: groundY,
+    ground: [
+      {x:0, w:400}, {x:480, w:200}, {x:800, w:300}, {x:1200, w:200}, {x:1500, w:350}, {x:1950, w:250}, {x:2300, w:500}
+    ],
+    platforms: [
+      {x:200, y:290, w:100, h:20}, {x:520, y:250, w:100, h:20}, {x:850, y:270, w:120, h:20},
+      {x:1220, y:240, w:100, h:20}, {x:1600, y:260, w:120, h:20}, {x:2000, y:230, w:100, h:20},
+      {x:2400, y:280, w:120, h:20}
+    ],
+    coins: [
+      {x:230,y:250},{x:550,y:210},{x:880,y:230},{x:1250,y:200},{x:1650,y:220},
+      {x:1700,y:220},{x:2030,y:190},{x:2430,y:240},{x:2470,y:240},{x:2700,y:340}
+    ],
+    enemies: [
+      {x:850, y:groundY-30, w:30, h:30, minX:800, maxX:1080, dir:1, speed:2},
+      {x:2000, y:groundY-30, w:30, h:30, minX:1950, maxX:2200, dir:-1, speed:2}
+    ],
+    gates: [
+      {x:700, y:groundY-90, w:40, h:90, solved:false},
+      {x:1400, y:groundY-90, w:40, h:90, solved:false},
+      {x:2200, y:groundY-90, w:40, h:90, solved:false}
+    ],
+    finishX: 2850
+  };
+
+  levels[3] = {
+    width: 3200,
+    groundY: groundY,
+    ground: [
+      {x:0, w:350}, {x:430, w:180}, {x:700, w:220}, {x:1020, w:180}, {x:1300, w:300}, {x:1700, w:200}, {x:1990, w:280}, {x:2360, w:200}, {x:2650, w:550}
+    ],
+    platforms: [
+      {x:180, y:290, w:100, h:20}, {x:470, y:250, w:90, h:20}, {x:750, y:270, w:100, h:20},
+      {x:1050, y:230, w:100, h:20}, {x:1350, y:260, w:100, h:20}, {x:1750, y:230, w:100, h:20},
+      {x:2050, y:270, w:100, h:20}, {x:2400, y:240, w:100, h:20}, {x:2800, y:280, w:120, h:20}
+    ],
+    coins: [
+      {x:210,y:250},{x:500,y:210},{x:780,y:230},{x:1080,y:190},{x:1380,y:220},
+      {x:1780,y:190},{x:2080,y:230},{x:2430,y:200},{x:2830,y:240},{x:2870,y:240},{x:3000,y:340},{x:3050,y:340}
+    ],
+    enemies: [
+      {x:700, y:groundY-30, w:30, h:30, minX:700, maxX:900, dir:1, speed:2},
+      {x:1300, y:groundY-30, w:30, h:30, minX:1300, maxX:1560, dir:1, speed:2.2},
+      {x:2360, y:groundY-30, w:30, h:30, minX:2360, maxX:2540, dir:-1, speed:2.2}
+    ],
+    gates: [
+      {x:600, y:groundY-90, w:40, h:90, solved:false},
+      {x:1200, y:groundY-90, w:40, h:90, solved:false},
+      {x:1900, y:groundY-90, w:40, h:90, solved:false},
+      {x:2560, y:groundY-90, w:40, h:90, solved:false}
+    ],
+    finishX: 3150
+  };
+
+  return levels[levelNum];
+}
+
+// ---------- Game State ----------
+const GRAVITY = 0.7;
+const JUMP_POWER = -13.5;
+const MOVE_SPEED = 4.5;
+
+let state = {
+  lives: 3,
+  score: 0,
+  currentLevel: 1,
+  level: null,
+  player: null,
+  camX: 0,
+  keys: {},
+  isPaused: false,
+  gameActive: false,
+  invincibleTimer: 0,
+  currentGate: null,
+  currentProblem: null
+};
+
+function resetPlayer() {
+  state.player = { x: 40, y: 300, w: 28, h: 40, vx: 0, vy: 0, onGround: false, facing: 1 };
+  state.camX = 0;
+}
+
+function loadLevel(num) {
+  state.level = buildLevel(num);
+  state.level.coins.forEach(c => c.collected = false);
+  resetPlayer();
+  document.getElementById('coinsTotalDisplay').textContent = state.level.coins.length;
+  updateHUD();
+}
+
+function updateHUD() {
+  document.getElementById('livesDisplay').textContent = state.lives;
+  document.getElementById('scoreDisplay').textContent = state.score;
+  document.getElementById('levelDisplay').textContent = state.currentLevel;
+  const collected = state.level.coins.filter(c => c.collected).length;
+  document.getElementById('coinsDisplay').textContent = collected;
+  document.getElementById('coinsTotalDisplay').textContent = state.level.coins.length;
+}
+
+// ---------- Input ----------
+window.addEventListener('keydown', e => {
+  state.keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { state.keys[e.code] = false; });
+
+// ---------- Collision Helpers ----------
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// ---------- Math Gate Modal ----------
+function openMathGate(gate) {
+  state.isPaused = true;
+  state.currentGate = gate;
+  const problem = genProblem(state.currentLevel);
+  state.currentProblem = problem;
+  document.getElementById('mathQuestion').textContent = problem.q;
+  const choicesDiv = document.getElementById('mathChoices');
+  choicesDiv.innerHTML = '';
+  document.getElementById('feedback').textContent = '';
+  problem.choices.forEach((choice, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'choiceBtn';
+    btn.textContent = choice;
+    btn.onclick = () => answerGate(idx, btn);
+    choicesDiv.appendChild(btn);
+  });
+  document.getElementById('mathOverlay').classList.remove('hidden');
+}
+
+function answerGate(idx, btnEl) {
+  const problem = state.currentProblem;
+  const feedback = document.getElementById('feedback');
+  if (idx === problem.correctIndex) {
+    btnEl.classList.add('correct');
+    feedback.textContent = 'Correct! Gate opening... ✅';
+    feedback.style.color = '#2ecc71';
+    state.score += 15;
+    state.currentGate.solved = true;
+    setTimeout(() => {
+      document.getElementById('mathOverlay').classList.add('hidden');
+      state.isPaused = false;
+      state.currentGate = null;
+      updateHUD();
+    }, 700);
+  } else {
+    btnEl.classList.add('wrong');
+    feedback.textContent = 'Not quite — try again!';
+    feedback.style.color = '#e74c3c';
+    setTimeout(() => {
+      // regenerate a new problem for another attempt
+      openMathGate(state.currentGate);
+    }, 900);
+  }
+}
+
+// ---------- Death / Life Loss ----------
+function loseLife(reason) {
+  if (state.invincibleTimer > 0) return;
+  state.lives--;
+  updateHUD();
+  if (state.lives <= 0) {
+    endGame(false);
+  } else {
+    resetPlayer();
+    state.invincibleTimer = 90;
+  }
+}
+
+function endGame(won) {
+  state.gameActive = false;
+  if (won) {
+    document.getElementById('victoryText').textContent =
+      `Final Score: ${state.score}. You solved every gate across all 3 worlds!`;
+    document.getElementById('victoryScreen').classList.remove('hidden');
+  } else {
+    document.getElementById('gameOverText').textContent =
+      `You ran out of lives on Level ${state.currentLevel}. Final Score: ${state.score}.`;
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+  }
+}
+
+function completeLevel() {
+  state.gameActive = false;
+  const collected = state.level.coins.filter(c => c.collected).length;
+  document.getElementById('levelCompleteText').textContent =
+    `Coins collected: ${collected}/${state.level.coins.length}. Score so far: ${state.score}.`;
+  document.getElementById('levelCompleteScreen').classList.remove('hidden');
+}
+
+// ---------- Update Loop ----------
+function update() {
+  if (!state.gameActive || state.isPaused) return;
+  const p = state.player;
+  const lvl = state.level;
+
+  // Horizontal movement
+  if (state.keys['ArrowLeft'] || state.keys['KeyA']) { p.vx = -MOVE_SPEED; p.facing = -1; }
+  else if (state.keys['ArrowRight'] || state.keys['KeyD']) { p.vx = MOVE_SPEED; p.facing = 1; }
+  else { p.vx = 0; }
+
+  // Jump
+  if ((state.keys['Space'] || state.keys['ArrowUp']) && p.onGround) {
+    p.vy = JUMP_POWER;
+    p.onGround = false;
+  }
+
+  // Gravity
+  p.vy += GRAVITY;
+  if (p.vy > 18) p.vy = 18;
+
+  // Attempt horizontal move, check gate collisions (solid walls)
+  const prevX = p.x;
+  p.x += p.vx;
+  for (const gate of lvl.gates) {
+    if (!gate.solved) {
+      const gRect = { x: gate.x, y: gate.y, w: gate.w, h: gate.h };
+      const pRect = { x: p.x, y: p.y, w: p.w, h: p.h };
+      if (rectsOverlap(pRect, gRect)) {
+        p.x = prevX;
+        if (p.vx !== 0) openMathGate(gate);
+        break;
+      }
+    }
+  }
+  if (p.x < 0) p.x = 0;
+  if (p.x > lvl.width - p.w) p.x = lvl.width - p.w;
+
+  // Vertical move + ground/platform collision
+  p.y += p.vy;
+  p.onGround = false;
+
+  // Ground segments
+  for (const seg of lvl.ground) {
+    if (p.x + p.w > seg.x && p.x < seg.x + seg.w) {
+      const groundTop = lvl.groundY;
+      if (p.y + p.h >= groundTop && p.y + p.h - p.vy <= groundTop + 1 && p.vy >= 0) {
+        p.y = groundTop - p.h;
+        p.vy = 0;
+        p.onGround = true;
+      }
+    }
+  }
+  // Floating platforms
+  for (const plat of lvl.platforms) {
+    if (p.x + p.w > plat.x && p.x < plat.x + plat.w) {
+      if (p.y + p.h >= plat.y && p.y + p.h - p.vy <= plat.y + 1 && p.vy >= 0) {
+        p.y = plat.y - p.h;
+        p.vy = 0;
+        p.onGround = true;
+      }
+    }
+  }
+
+  // Fell into a pit
+  if (p.y > CH + 60) {
+    loseLife('pit');
+    return;
+  }
+
+  // Coins
+  for (const coin of lvl.coins) {
+    if (!coin.collected) {
+      const cRect = { x: coin.x - 10, y: coin.y - 10, w: 20, h: 20 };
+      if (rectsOverlap({x:p.x,y:p.y,w:p.w,h:p.h}, cRect)) {
+        coin.collected = true;
+        state.score += 10;
+        updateHUD();
+      }
+    }
+  }
+
+  // Enemies
+  for (const en of lvl.enemies) {
+    en.x += en.dir * en.speed;
+    if (en.x < en.minX) { en.x = en.minX; en.dir = 1; }
+    if (en.x > en.maxX) { en.x = en.maxX; en.dir = -1; }
+    if (state.invincibleTimer <= 0 && rectsOverlap({x:p.x,y:p.y,w:p.w,h:p.h}, {x:en.x,y:en.y,w:en.w,h:en.h})) {
+      loseLife('enemy');
+      return;
+    }
+  }
+
+  if (state.invincibleTimer > 0) state.invincibleTimer--;
+
+  // Camera
+  state.camX = Math.max(0, Math.min(p.x - CW/2 + p.w/2, lvl.width - CW));
+
+  // Finish line
+  if (p.x >= lvl.finishX) {
+    if (state.currentLevel >= 3) {
+      endGame(true);
+    } else {
+      completeLevel();
+    }
+  }
+}
+
+// ---------- Draw Loop ----------
+function draw() {
+  ctx.clearRect(0, 0, CW, CH);
+  const lvl = state.level;
+  if (!lvl) return;
+
+  // Sky gradient background already via CSS; draw distant hills
+  ctx.fillStyle = '#a3d9c9';
+  ctx.beginPath();
+  ctx.ellipse(200 - state.camX*0.3, CH - 40, 220, 90, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(900 - state.camX*0.3, CH - 30, 260, 100, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(1600 - state.camX*0.3, CH - 40, 240, 90, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(-state.camX, 0);
+
+  // Ground
+  ctx.fillStyle = '#6b4226';
+  for (const seg of lvl.ground) {
+    ctx.fillRect(seg.x, lvl.groundY, seg.w, CH - lvl.groundY);
+    ctx.fillStyle = '#3fa34d';
+    ctx.fillRect(seg.x, lvl.groundY, seg.w, 12);
+    ctx.fillStyle = '#6b4226';
+  }
+
+  // Platforms
+  ctx.fillStyle = '#8b5a2b';
+  for (const plat of lvl.platforms) {
+    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    ctx.fillStyle = '#3fa34d';
+    ctx.fillRect(plat.x, plat.y, plat.w, 6);
+    ctx.fillStyle = '#8b5a2b';
+  }
+
+  // Gates
+  for (const gate of lvl.gates) {
+    if (!gate.solved) {
+      const pulse = (Math.sin(Date.now()/200) + 1) / 2;
+      ctx.fillStyle = `rgba(247, 183, 49, ${0.5 + pulse*0.3})`;
+      ctx.fillRect(gate.x, gate.y, gate.w, gate.h);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(gate.x, gate.y, gate.w, gate.h);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.font = 'bold 22px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', gate.x + gate.w/2, gate.y + gate.h/2 + 8);
+    }
+  }
+
+  // Coins
+  for (const coin of lvl.coins) {
+    if (!coin.collected) {
+      ctx.beginPath();
+      ctx.fillStyle = '#f7d716';
+      ctx.arc(coin.x, coin.y, 9, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#c9a300';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // Enemies
+  for (const en of lvl.enemies) {
+    ctx.fillStyle = '#c0392b';
+    ctx.fillRect(en.x, en.y, en.w, en.h);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(en.x + 5, en.y + 6, 6, 6);
+    ctx.fillRect(en.x + en.w - 11, en.y + 6, 6, 6);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(en.x + 7, en.y + 8, 2, 2);
+    ctx.fillRect(en.x + en.w - 9, en.y + 8, 2, 2);
+  }
+
+  // Finish flag
+  ctx.fillStyle = '#2ecc71';
+  ctx.fillRect(lvl.finishX, lvl.groundY - 120, 6, 120);
+  ctx.beginPath();
+  ctx.moveTo(lvl.finishX + 6, lvl.groundY - 120);
+  ctx.lineTo(lvl.finishX + 46, lvl.groundY - 105);
+  ctx.lineTo(lvl.finishX + 6, lvl.groundY - 90);
+  ctx.fill();
+
+  // Player
+  const p = state.player;
+  const flashing = state.invincibleTimer > 0 && Math.floor(state.invincibleTimer/6) % 2 === 0;
+  if (!flashing) {
+    ctx.fillStyle = '#2980b9';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = '#f5cba7';
+    ctx.fillRect(p.x + (p.facing>0?p.w-10:2), p.y + 4, 8, 8);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(p.x + (p.facing>0?p.w-6:6), p.y + 6, 3, 3);
+  }
+
+  ctx.restore();
+}
+
+// ---------- Main Loop ----------
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ---------- UI Wiring ----------
+document.getElementById('startBtn').onclick = () => {
+  document.getElementById('startScreen').classList.add('hidden');
+  state.lives = 3;
+  state.score = 0;
+  state.currentLevel = 1;
+  loadLevel(1);
+  state.gameActive = true;
+  updateHUD();
+};
+
+document.getElementById('nextLevelBtn').onclick = () => {
+  document.getElementById('levelCompleteScreen').classList.add('hidden');
+  state.currentLevel++;
+  loadLevel(state.currentLevel);
+  state.gameActive = true;
+};
+
+document.getElementById('restartBtn').onclick = () => {
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  state.lives = 3;
+  state.score = 0;
+  state.currentLevel = 1;
+  loadLevel(1);
+  state.gameActive = true;
+  updateHUD();
+};
+
+document.getElementById('playAgainBtn').onclick = () => {
+  document.getElementById('victoryScreen').classList.add('hidden');
+  state.lives = 3;
+  state.score = 0;
+  state.currentLevel = 1;
+  loadLevel(1);
+  state.gameActive = true;
+  updateHUD();
+};
+
+loop();
+</script>
+</body>
+</html>
